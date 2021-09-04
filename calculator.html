@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8" />
+		<title>绩效计算器(开发)</title>
+		<meta http-equiv="Pragma" content="no-cache">
+		<meta http-equiv="Expires" content="0">
+		<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+		<script src="js/vue.js" type="text/javascript" charset="utf-8"></script>
+		<style>
+			body {
+			margin: 0;
+			padding: 0;
+			position: relative;
+			font-size: 14px;
+			line-height: 20px;
+			font-family: system;
+		}
+
+		#app {
+			padding: 0 20px;
+		}
+
+		.add {
+			background-color: #1973bf;
+		}
+
+		.del {
+			background-color: #ff0000;
+		}
+		
+		.red {
+			color: #ff0000;
+		}
+		
+		.greenBold {
+			color: #1ba41e;
+			font-weight: bold;
+		}
+
+		.top {
+			position: fixed;
+			width: 100%;
+			height: auto;
+			left: 0;
+			top: 0;
+			padding: 10px 20px;
+			font-size: 14px;
+			background-color: #f5f5f5;
+			border-bottom: 1px solid #ddd;
+		}
+
+		table {
+			font-size: 14px;
+			color: #333333;
+			border-width: 1px;
+			border-color: #ddd;
+			border-collapse: collapse;
+			width: 100%;
+			margin-bottom: 20px;
+		}
+
+		table th {
+			border-width: 1px;
+			padding: 3px;
+			border-style: solid;
+			border-color: #ddd;
+			background-color: #f5f5f5;
+		}
+
+		table td {
+			border-width: 1px;
+			padding: 3px 10px;
+			border-style: solid;
+			border-color: #ddd;
+			background-color: #ffffff;
+		}
+		
+		.tdBottomBorderWidth {
+			/* border-bottom-width: 3px; */
+		}
+
+		input[type=text],input[type=number] {
+			height: 30px;
+			line-height: 24px;
+			border: 1px solid #ddd;
+			padding: 0 8px;
+			display: inline-block;
+			border-radius: 3px;
+		}
+
+		button {
+			height: 30px;
+			border-radius: 5px;
+			font-weight: bold;
+			color: #fff;
+			border: none;
+			font-size: 14px;
+		}
+
+		.pointInput {
+			width: 40px;
+			font-size: 14px;
+			text-align: center;
+		}
+
+		.taskInput {
+			width: 100%;
+			font-size: 14px;
+			box-sizing: border-box;
+		}
+
+		[v-cloak] {
+			display: none;
+		}
+		
+		.pre_format {
+			white-space: pre-wrap;
+			font-size: 14px;
+			line-height: 20px;
+		}
+		 a:link, a:hover, a:active, a:visited{
+			 color: #1973BF;
+			 font-size: 14px;
+		 }
+	</style>
+	</head>
+
+	<body>
+		<div id="app" v-cloak>
+			<div class="top">
+				<div style="display: -webkit-box; position: relative;">
+					<div style="line-height: 32px; border-right: 1px solid #ddd; padding-right: 20px; font-weight: bold; font-size: 18px;">
+						· 基础设置 (开发/测试组)</div>
+					<!-- <div style="padding-left: 20px;">
+						个人工时数:
+						<input type="text" v-model.number="myWorkTime" class="pointInput" v-on:input="task_cal()" /> 小时
+					</div>
+					<div style="padding-left: 20px;">
+						部门平均工时数:
+						<input type="text" v-model.number="avgWorkTime" class="pointInput" v-on:input="task_cal()" /> 小时
+					</div>
+					<div style="padding-left: 20px;">
+						迟到次数:
+						<input type="text" v-model.number="lateTimes" class="pointInput" v-on:input="task_cal()" /> 次
+					</div> -->
+					<div style="padding-left: 20px;">
+						<button class="add" v-on:click="output_savedData()">导出缓存</button>
+					</div>
+					<div style="padding-left: 20px;">
+						<button class="add" v-on:click="import_savedData()">导入缓存</button>
+					</div>
+					<div style="padding-left: 20px;">
+						<button class="del" v-on:click="clear_savedData()">清空缓存</button>
+					</div>
+				</div>
+			</div>
+
+			<div style="margin-bottom: 20px; padding-top: 50px;">
+				<div style="margin-bottom: 10px;">
+					<h3 style="margin-bottom: 10px; font-size: 18px;">· 任务列表 <span style="font-size: 14px; color: #999; font-weight: normal;">(
+							已添加 {{ tasks.length }} 项 )</span>
+					</h3>
+					<div style="font-size: 14px; margin-bottom: 10px; background-color: #f5f5f5; border-radius: 5px; padding: 10px; min-width: 500px;">
+						任务周期类型说明:<br />1.【项目任务】工时字段填写"任务预计工时"<br />禅道筛选条件：由谁创建(不等于自己)、「并且」由谁完成(自己)、「并且」实际完成(大于等于当月第一天)、「并且」实际完成(小于等于当月最后一天);<br />2.【自主任务】工时字段填写"任务本月消耗工时"<br />禅道筛选条件：由谁创建(自己)、「并且」最后修改(大于等于当月第一天)、「并且」最后修改(小于等于当月最后一天);
+					</div>
+					<button class="add" v-on:click="add_task()" style="margin-top: 10px;">＋ 项目任务</button><button class="add"
+					 v-on:click="openFile()" style="margin-top: 10px; margin-left: 10px;">↑ 导入禅道任务 (XML)</button><input :ref="'csvFileInput'"
+					 style="display: none;" type="file" v-on:change="importTask()">
+				</div>
+				<table>
+					<tr>
+						<th>操作</th>
+						<th>任务名称</th>
+						<th>任务工时</th>
+						<!-- <th>任务类型</th> -->
+					</tr>
+					<tr v-for="(task, index) in tasks">
+						<td style="text-align: center; width: 50px; min-width: 50px;">
+							<button class="del" style="font-size: 12px; width: 46px;" v-on:click="remove_task(index)">移除</button>
+						</td>
+						<td style="min-width: 200px;">
+							<input type="text" :ref="'c1_'+index" class="taskInput" v-model="task.taskName" placeholder="输入任务名称..."
+							 v-on:keyup="checkEnter(1, index, $event)">
+						</td>
+						<td style="text-align: center; width: 160px; min-width: 160px;">
+							<label :for="'c2_'+index" style=" line-height: 30px; display: inline-block;" v-if="task.taskType == 0">评估预计</label>
+							<input type="text" :ref="'c2_'+index" class="pointInput" v-model.number="task.taskTime" v-on:input="task_cal()"
+							 v-on:click="selectText($event)" v-on:keyup="checkEnter(2, index, $event)" placeholder="工时数" v-if="task.taskType == 0">
+							<label :for="'c2_'+index" style=" line-height: 30px; display: inline-block;" v-if="task.taskType == 1">实际消耗</label>
+							<input type="text" :ref="'c2_'+index" class="pointInput" v-model.number="task.taskTimeConsumed" v-on:input="task_cal()"
+							 v-on:click="selectText($event)" v-on:keyup="checkEnter(2, index, $event)" placeholder="工时数" v-if="task.taskType == 1">
+							工时
+						</td>
+						<!-- <td style="width: 200px; min-width: 200px;">
+							<input type="radio" :id="'taskType'+index+'_0'" value="0" v-model.number="task.taskType" v-on:change="task_cal()" />
+							<label :for="'taskType'+index+'_0'" style="padding-right: 10px; line-height: 30px; display: inline-block;">项目任务</label>
+							<input type="radio" :id="'taskType'+index+'_1'" value="1" v-model.number="task.taskType" v-on:change="task_cal()" />
+							<label :for="'taskType'+index+'_1'" style=" line-height: 30px; display: inline-block;">自主任务</label>
+						</td> -->
+					</tr>
+					<tr>
+						<th></th>
+						<th></th>
+						<th style="font-weight: normal;">共 {{totalTaskTime}} 工时</th>
+						<!-- <th></th> -->
+					</tr>
+				</table>
+			</div>
+			<!-- <div style="font-size: 14px; margin-bottom: 10px; background-color: #f5f5f5; border-radius: 5px; padding: 10px;">
+				总有效权重: <span style="color: #ff0000; font-weight: bold;">{{totalCalTaskWeight}}</span>, 总绩效得分: <span style="color: #ff0000; font-weight: bold;">{{totalCalPoint}}</span>
+			</div> -->
+			<table style="margin-bottom: 50px;">
+				<tr>
+					<th style="width: 150px;">考核内容</th>
+					<th style="width: 50px;">权重</th>
+					<th>考核指标</th>
+          <th>《60</th>
+          <th>扣分</th>
+          <th>85</th>
+          <th>加分</th>
+					<!-- <th style="width: 100px;">自评分数</th>
+					<th style="width: 100px;">绩效得分</th> -->
+				</tr>
+				<template v-for="(task, index) in tasks">
+					<tr>
+						<td :rowspan="cal_rowspan(task).rowspan">
+							<div style="max-width: 250px; word-break: break-all;">
+								<span v-if="task.taskDetail.taskId != ''"><a :href="'http://192.168.0.200:8081/zentao/task-view-'+task.taskDetail.taskId+'.html'" target="_blank">{{ task.taskName }}</a></span>
+								<span v-else>{{ task.taskName }}</span>
+							</div>
+							总权重: {{ task.taskWeight }}%<br />
+						</td>
+						<td style="text-align: left;">{{ task.targetWeight.time }}%</td>
+						<td>
+							{{cal_rowspan(task).target.time.text}}
+							<span v-if="task.taskDetail.taskId != ''"><br /><span class="greenBold">{{ task.taskDetail.taskStartDate }}</span> 至 <span class="greenBold">{{ task.taskDetail.taskEndDate }}</span>,
+								共 <span class="greenBold">{{ task.taskType == 0 ? task.taskTime : task.taskTimeConsumed }}</span> 工时</span>
+							<span v-else><br />共 <span class="greenBold">{{ task.taskType == 0 ? task.taskTime : task.taskTimeConsumed }}</span> 工时</span>
+						</td>
+            <td style="text-align: left;">
+							延迟3天或以上
+						</td>
+            <td style="text-align: left;">
+							每延迟1天完成扣2分
+						</td>
+            <td style="text-align: left;">
+							按时完成
+						</td>
+            <td style="text-align: left;" width="400">
+							每提早1天完成加3分(按自然日计算)在需求整体按时交付的情况下, 个人提前完成任务最高可得100分在需求整体延期交付的情况下, 个人提前完成任务最高可得90分
+						</td>
+						<!-- <td style="text-align: center;">
+							<input type="text" class="pointInput" v-model.number="task.selfPoint.time" v-on:click="selectText($event)" v-on:input="task_cal()">
+						</td> -->
+						<!-- <td style="text-align: center;">
+							{{ parseFloat((task.selfPoint.time * task.targetWeight.time / 100).toFixed(2)) }}
+						</td> -->
+					</tr>
+					<!-- <tr v-if="cal_rowspan(task).target.predict.isShow">
+						<td style="text-align: center;">{{ task.targetWeight.predict }}%</td>
+						<td>{{cal_rowspan(task).target.predict.text}}</td>
+						<td style="text-align: center;">
+							<input type="text" class="pointInput" v-model.number="task.selfPoint.predict" v-on:click="selectText($event)" v-on:input="task_cal()">
+						</td>
+						<td style="text-align: center;">
+							{{ parseFloat((task.selfPoint.predict * task.targetWeight.predict / 100).toFixed(2)) }}
+						</td>
+						<td style="text-align: center;">
+							{{ parseFloat((task.selfPoint.predict * task.targetWeight.predict / 100).toFixed(2)) }}
+						</td>
+						<td style="text-align: center;">
+							{{ parseFloat((task.selfPoint.predict * task.targetWeight.predict / 100).toFixed(2)) }}
+						</td>
+					</tr> -->
+					<tr v-if="cal_rowspan(task).target.bug.isShow">
+						<td style="text-align: left;">{{ task.targetWeight.bug }}%</td>
+						<td style="text-align: left;">{{cal_rowspan(task).target.bug.text}}</td>
+						<td style="text-align: left;" width="100">
+							<span style="color: #67C23A;">开发组：{{task.bugText}}</span><br>
+							<span style="color: #E6A23C;">测试组：{{task.testBugText}}</span>
+							<!-- <input type="text" class="pointInput" v-model.number="task.selfPoint.bug" v-on:click="selectText($event)" v-on:input="task_cal()"> -->
+						</td>
+            <td style="text-align: left; min-width: 50px;">
+							<span style="color: #67C23A;">开发组：相比85分基础值, 每多出1~3个BUG, 扣2分</span><br>
+							<span style="color: #E6A23C;">测试组：相比85分基础值, 每多1个BUG扣3分</span>
+						</td>
+            <td style="text-align: left; min-width: 50px;" width="100">
+							<span style="color: #67C23A;">开发组：{{task.nomalBug}}</span><br>
+							<span style="color: #E6A23C;">测试组：{{task.testNomalBug}}</span>
+						</td>
+            <td style="text-align: left; min-width: 50px;">
+							<span style="color: #67C23A;">开发组：相比85分基础值, 每少3个BUG加3分(未达到少3个不加分), 最多得100分</span><br>
+							<span style="color: #E6A23C;">测试组：相比85分基础值, 每少1个BUG加3分, 最多得100分</span>
+						</td>
+						<!-- <td style="text-align: center;">
+							{{ parseFloat((task.selfPoint.bug * task.targetWeight.bug / 100).toFixed(2)) }}
+						</td> -->
+					</tr>
+					<tr>
+						<td colspan="5" style="padding: 0;" class="tdBottomBorderWidth"></td>
+					</tr>
+				</template>
+				<!-- <template v-for="target in fixedTargets">
+					<tr v-for="(subTarget, index) in target.subTargets">
+						<td :rowspan="target.subTargets.length" v-if="index==0">
+							<div style="max-width: 250px; min-width: 120px; word-break: break-all;">{{ target.name }}</div>
+							总权重: {{ calFixedTargetTotalWeight(target) }}%<br />
+						</td>
+						<td style="text-align: center; min-width: 50px;">{{ subTarget.weight }}%</td>
+						<td v-html="subTarget.name" class="pre_format" style="min-width: 200px;"></td>
+						<td style="text-align: center;">
+							<input type="text" class="pointInput" v-model.number="subTarget.selfPoint" v-on:click="selectText($event)" v-on:input="task_cal()" v-if="target.name != '工作量' && target.name != '出勤'">
+							<span v-else>{{parseFloat((subTarget.selfPoint).toFixed(2))}}</span>
+						</td>
+						<td style="text-align: center; min-width: 50px;">
+							{{ parseFloat((subTarget.selfPoint * subTarget.weight / 100).toFixed(2)) }}
+						</td>
+					</tr>
+					<tr>
+						<td colspan="5" style="padding: 0;" class="tdBottomBorderWidth"></td>
+					</tr>
+				</template> -->
+			</table>
+			<div style="width: 1px; height: 1px; opacity: none; pointer-events: none; display: block; overflow: hidden;" :ref="'saveData'">{{JSON.stringify($data)}}</div>
+		</div>
+	</body>
+	<script>
+		var app = new Vue({
+			el: '#app',
+			data: {
+				//迟到次数
+				lateTimes: 0,
+				//个人工时数
+				myWorkTime: 100,
+				//平均工时数
+				avgWorkTime: 100,
+				totalTaskWeight: 75,
+				tasks: [{
+					taskName: "", //任务名称
+					taskTime: 0, //任务预计工时
+					taskTimeConsumed: 0, //实际消耗工时
+					taskWeight: 0, //任务权重
+					taskType: 0, //任务类型, 0=项目任务, 1=自主任务
+					targetWeight: { //任务指标权重
+						time: 0, //时间指标权重
+						predict: 0, //需求评估指标权重
+						bug: 0 //BUG指标权重
+					},
+					selfPoint: { //指标自评分
+						time: 0, //时间指标自评
+						predict: 0, //需求评估指标自评
+						bug: 0 //BUG指标自评
+					},
+					taskDetail: { //导入的任务详细信息
+						taskStartDate: "", //任务预计开始时间
+						taskEndDate: "", //任务预计结束时间
+						taskId: "", //任务ID
+						taskStatus: "", //任务完成状态
+					}
+				}],
+				fixedTargets: [{
+						name: "线上质量",
+						subTargets: [{
+							name: "被发现的线上BUG数量\n(会导致业务受影响的BUG, 如仅造成细小影响的, 则按发现问题的个数计算，每个问题6分, 造成严重影响的, 发现一个就直接不及格)",
+							weight: 10,
+							selfPoint: 0
+						}]
+					},
+					{
+						name: "项目进度",
+						subTargets: [{
+							name: "自身负责任务的所属项目是否有整体延期交付的情况",
+							weight: 5,
+							selfPoint: 0
+						}]
+					},
+					{
+						name: "工作计划及总结",
+						subTargets: [{
+								name: "是否每日按时提交日报",
+								weight: 4,
+								selfPoint: 0
+							},
+							{
+								name: "是否有按计划完成每日的工作任务\n(与项目协商达成的任务期限调整, 不算作超期)",
+								weight: 4,
+								selfPoint: 0
+							},
+							{
+								name: "是否有对自身的不足，或对日常工作中所遇到的问题，总结归纳出有效的改善和解决方法",
+								weight: 2,
+								selfPoint: 0
+							}
+						]
+					},
+					{
+						name: "工作量",
+						subTargets: [{
+							name: "个人工时数 / 部门平均工时数 * 85 = 工作量绩效得分（最高100分）",
+							weight: 10,
+							selfPoint: 0
+						}]
+					},
+					{
+						name: "沟通能力",
+						subTargets: [{
+							name: "1、能清楚表达自己观点，根据他人的回应来调整自己的发言，愿意听取不同意见。\n2、能通过合理有效的沟通方式促进问题解决，并且逻辑清晰准确。\n3、能积极听取别人意见并给予有效反馈。",
+							weight: 3,
+							selfPoint: 0
+						}]
+					},
+					{
+						name: "责任心",
+						subTargets: [{
+							name: "1、对于上司安排的任务，不以任何接口推诿，认真严谨对待，时间节点内完成工作。\n2、对于工作中的问题，能积极寻求解决办法，及时反馈给上次。\n3、能如实反馈工作中的问题，并主动承担工作中的责任。",
+							weight: 3,
+							selfPoint: 0
+						}]
+					},
+					{
+						name: "服务态度",
+						subTargets: [{
+							name: "1、及时响应需求/问题，主动地解决或协助相关部门共同处理问题。\n2、及时反馈对接事宜进度，保持信息互通。",
+							weight: 4,
+							selfPoint: 0
+						}]
+					},
+					{
+						name: "团队精神",
+						subTargets: [{
+							name: "1、能积极促进团队成员间的合作，维护团队积极向上的氛围。\n2、主动配合上级、团队同事处理的项目或任务。\n3、接受和支持团队决定。",
+							weight: 3,
+							selfPoint: 0
+						}]
+					},
+					{
+						name: "价值观",
+						subTargets: [{
+							name: "诚信、平等、分享、创新、追求卓越、以用户体验为中心",
+							weight: 3,
+							selfPoint: 0
+						}]
+					},
+					{
+						name: "出勤",
+						subTargets: [{
+							name: "不迟到或早退, 每次迟到扣13分，全勤为100分",
+							weight: 4,
+							selfPoint: 0
+						}]
+					}
+				],
+				bugTargets:[{
+					time: 5,
+					text: '>13',
+					nomal: 2,
+					testText: '>4',
+					testNomal: 0
+				},{
+					time: 10,
+					text: '>16',
+					nomal: 4,
+					testText: '>5',
+					testNomal: 1
+				},{
+					time: 20,
+					text: '>19',
+					nomal: 7,
+					testText: '>6',
+					testNomal: 2
+				},{
+					time: 30,
+					text: '>22',
+					nomal: 10,
+					testText: '>7',
+					testNomal: 3
+				},{
+					time: 40,
+					text: '>25',
+					nomal: 13,
+					testText: '>8',
+					testNomal: 4
+				}]
+			},
+			computed: {
+				//任务总工时
+				totalTaskTime: function(){
+					var val = 0;
+					for (var i in this.tasks) {
+						if(this.tasks[i].taskType == 0){
+							val += parseFloat(this.tasks[i].taskTime);
+						}else{
+							val += parseFloat(this.tasks[i].taskTimeConsumed);
+						}
+					}
+					return parseFloat(val.toFixed(2));
+				},
+				//任务总权重
+				// totalTaskWeight: function(){
+				// 	var val = 0;
+				// 	for (var i in this.fixedTargets) {
+				// 		for (var j in this.fixedTargets[i].subTargets){
+				// 			val += this.fixedTargets[i].subTargets[j].weight;
+				// 		}
+				// 	}
+				// 	return 100 - parseFloat(val.toFixed(2));
+				// },
+				//任务总权重(当前所有已添加任务的权重相加)
+				totalCalTaskWeight: function() {
+					var val = 0;
+					for (var i in this.tasks) {
+						val += parseFloat(this.tasks[i].taskWeight);
+					}
+					for (var i in this.fixedTargets) {
+						for (var j in this.fixedTargets[i].subTargets) {
+							val += parseFloat(this.fixedTargets[i].subTargets[j].weight);
+						}
+					}
+					return parseFloat(val.toFixed(2));
+				},
+				//绩效总得分
+				totalCalPoint: function() {
+					var val = 0;
+					for (var i in this.tasks) {
+						val += parseFloat(this.tasks[i].selfPoint.time * this.tasks[i].targetWeight.time / 100);
+						val += parseFloat(this.tasks[i].selfPoint.predict * this.tasks[i].targetWeight.predict / 100);
+						val += parseFloat(this.tasks[i].selfPoint.bug * this.tasks[i].targetWeight.bug / 100);
+					}
+					for (var i in this.fixedTargets) {
+						for (var j in this.fixedTargets[i].subTargets) {
+							val += parseFloat(this.fixedTargets[i].subTargets[j].selfPoint * this.fixedTargets[i].subTargets[j].weight /
+								100);
+						}
+					}
+					return parseFloat(val.toFixed(2));
+				}
+			},
+			methods: {
+				//添加任务
+				add_task: function(param) {
+					if (param) {
+						this.tasks.push({
+							taskName: param.taskName,
+							taskTime: param.taskTime,
+							taskTimeConsumed: param.taskTimeConsumed,
+							taskWeight: 0,
+							taskType: param.taskName.indexOf("【自主】") == -1 ? 0 : 1,
+							targetWeight: {
+								time: 0,
+								predict: 0,
+								bug: 0
+							},
+							selfPoint: {
+								time: 0,
+								predict: 0,
+								bug: 0
+							},
+							taskDetail: {
+								taskStartDate: param.taskStartDate,
+								taskEndDate: param.taskEndDate,
+								taskId: param.taskId,
+								taskStatus: param.taskStatus,
+							}
+						});
+					} else {
+						this.tasks.push({
+							taskName: "",
+							taskTime: 0,
+							taskTimeConsumed: 0,
+							taskWeight: 0,
+							taskType: 0,
+							targetWeight: {
+								time: 0,
+								predict: 0,
+								bug: 0
+							},
+							selfPoint: {
+								time: 0,
+								predict: 0,
+								bug: 0
+							},
+							taskDetail: {
+								taskStartDate: "",
+								taskEndDate: "",
+								taskId: "",
+								taskStatus: "",
+							}
+						});
+					}
+					this.task_cal();
+				},
+				//移除任务
+				remove_task: function(index) {
+					this.tasks.splice(index, 1);
+					this.task_cal();
+				},
+				//绩效分计算
+				task_cal: function() {
+					//工作量计算
+					this.fixedTargets[3].subTargets[0].selfPoint = (this.myWorkTime / this.avgWorkTime * 85) > 100 ? 100 : this.myWorkTime / this.avgWorkTime * 85;
+					//考勤分计算
+					this.fixedTargets[9].subTargets[0].selfPoint = (100 - parseInt(this.lateTimes) * 13) >= 0 ? (100 - parseInt(this.lateTimes) * 13) : 0;
+					//计算任务权重占比
+					for (var i in this.tasks) {
+						//计算任务各指标权重占比
+						switch (this.tasks[i].taskType) {
+							case 0: //「项目任务」
+								this.tasks[i].taskWeight = parseFloat((this.tasks[i].taskTime / this.totalTaskTime * this.totalTaskWeight)
+									.toFixed(2));
+								// if (this.tasks[i].taskTime > 8) { //当任务预计工时大于1天, 则需要同时考核"需求评估清单"项
+								// 	this.tasks[i].targetWeight.time = parseFloat((this.tasks[i].taskWeight * 0.4).toFixed(2));
+								// 	this.tasks[i].targetWeight.predict = parseFloat((this.tasks[i].taskWeight * 0.3).toFixed(2));
+								// 	this.tasks[i].targetWeight.bug = parseFloat((this.tasks[i].taskWeight * 0.3).toFixed(2));
+								// } else { //否则仅考核"任务完成时间"与"任务BUG数"
+									this.tasks[i].targetWeight.time = parseFloat((this.tasks[i].taskWeight * 0.6).toFixed(2));
+									this.tasks[i].targetWeight.predict = 0;
+									this.tasks[i].targetWeight.bug = parseFloat((this.tasks[i].taskWeight * 0.4).toFixed(2));
+								// }
+								break;
+							case 1: //「自主任务」;
+								this.tasks[i].taskWeight = parseFloat((this.tasks[i].taskTimeConsumed / this.totalTaskTime * this.totalTaskWeight).toFixed(2));
+								this.tasks[i].targetWeight.time = parseFloat((this.tasks[i].taskWeight * 0.5).toFixed(2));
+								this.tasks[i].targetWeight.predict = 0;
+								this.tasks[i].targetWeight.bug = 0;
+								break;
+						}
+						let isOverMax = true
+						for (let j = 0; j < this.bugTargets.length; j++) {
+							if(Number(this.tasks[i].taskTime) <= this.bugTargets[j].time) {
+								this.tasks[i].bugText = this.bugTargets[j].text
+								this.tasks[i].nomalBug = this.bugTargets[j].nomal
+								this.tasks[i].testBugText = this.bugTargets[j].testText
+								this.tasks[i].testNomalBug = this.bugTargets[j].testNomal
+								isOverMax = false
+								break
+							}
+						}
+						if(isOverMax) {
+							this.tasks[i].bugText = this.bugTargets[this.bugTargets.length - 1].text
+							this.tasks[i].nomalBug = this.bugTargets[this.bugTargets.length - 1].nomal
+							this.tasks[i].testBugText = this.bugTargets[this.bugTargets.length - 1].testText
+							this.tasks[i].testNomalBug = this.bugTargets[this.bugTargets.length - 1].testNomal
+						}
+					}
+				},
+				//全选文本框
+				selectText: function(evt) {
+					evt.target.select();
+				},
+				//回车检测及处理
+				checkEnter: function(type, index, evt) {
+					if (evt.key == "Enter") {
+						if (index < this.tasks.length - 1) {
+							this.$refs["c" + type + "_" + (index + 1)][0].focus();
+							this.$refs["c" + type + "_" + (index + 1)][0].select();
+						} else {
+							this.add_task();
+							this.$nextTick(function() {
+								this.$refs["c" + type + "_" + (index + 1)][0].focus();
+								this.$refs["c" + type + "_" + (index + 1)][0].select();
+							});
+						}
+					}
+				},
+				//导入禅道任务
+				importTask: function() {
+					let reader = new FileReader();
+					reader.readAsText(this.$refs["csvFileInput"].files[0]);
+					reader.onload = function() {
+						//转化XML为DOM对象
+						let parser = new DOMParser();
+						let xmlDoc = parser.parseFromString(this.result, "text/xml");
+						//处理导入数据格式为数组, 方便查找数据
+						let rows = xmlDoc.getElementsByTagName("rows")[0].children;
+						//清理空任务数据(任务名与工时同时为空)
+						let clearEmptyLoop = true;
+						let i = 0;
+						while (clearEmptyLoop) {
+							if((app.tasks[i].taskName == "" && app.tasks[i].taskType == 0 && parseFloat(app.tasks[i].taskTime) == 0) || (app.tasks[i].taskName == "" && app.tasks[i].taskType == 1 && parseFloat(app.tasks[i].taskTimeConsumed) == 0)){
+								app.tasks.splice(i, 1);
+								i-=1;
+							}
+							i+=1;
+							if(i >= app.tasks.length){
+								clearEmptyLoop = false;
+							}
+						}
+						//插入任务数据并重新计分
+						for (let i = 0; i < rows.length; i++) {
+							let param = {
+								taskName: rows[i].children[4].textContent,
+								taskTime: rows[i].children[12].textContent,
+								taskTimeConsumed: rows[i].children[13].textContent,
+								taskStartDate: rows[i].children[8].textContent,
+								taskEndDate: rows[i].children[10].textContent,
+								taskId: rows[i].children[0].textContent,
+								taskStatus: rows[i].children[11].textContent,
+							}
+							app.add_task(param);
+						}
+						app.task_cal();
+						app.$refs["csvFileInput"].value = "";
+					};
+				},
+				//打开文件选框
+				openFile: function() {
+					this.$refs["csvFileInput"].click();
+				},
+				//绩效指标项显示控制
+				cal_rowspan: function(task) {
+					var val = {
+						rowspan: 3,
+						target: {
+							time: {
+								isShow: true,
+								text: "任务时间"
+							},
+							predict: {
+								isShow: true,
+								text: "任务评估及规划"
+							},
+							bug: {
+								isShow: true,
+								text: "BUG数量"
+							}
+						}
+					};
+					switch (task.taskType) {
+						//「项目任务」
+						case 0:
+							// if (task.taskTime > 8) {
+							// 	val.rowspan = 3;
+							// 	val.target.time = {
+							// 		isShow: true,
+							// 		text: "任务时间安排"
+							// 	};
+							// 	val.target.predict = {
+							// 		isShow: true,
+							// 		text: "任务评估及规划"
+							// 	};
+							// 	val.target.bug = {
+							// 		isShow: true,
+							// 		text: "BUG数量"
+							// 	};
+
+							// } else {
+								val.rowspan = 2;
+								val.target.time = {
+									isShow: true,
+									text: "任务时间安排"
+								};
+								val.target.predict = {
+									isShow: false,
+									text: "任务评估及规划"
+								};
+								val.target.bug = {
+									isShow: true,
+									text: "BUG数量"
+								};
+							// }
+							break;
+						//「自主任务」
+						case 1:
+							val.rowspan = 2;
+							val.target.time = {
+								isShow: true,
+								text: "任务实际耗时"
+							};
+							val.target.predict = {
+								isShow: true,
+								text: "任务目标与价值"
+							};
+							val.target.bug = {
+								isShow: false,
+								text: "BUG数量"
+							};
+							break;
+					};
+					return val;
+				},
+				calFixedTargetTotalWeight: function(fixedTarget) {
+					var val = 0;
+					for (var i in fixedTarget.subTargets) {
+						val += fixedTarget.subTargets[i].weight;
+					}
+					return val;
+				},
+				output_savedData: function() {
+					let range = document.createRange();
+					range.selectNode(this.$refs["saveData"].childNodes[0]);
+					let selection = window.getSelection();
+					if (selection.rangeCount > 0){
+						selection.removeAllRanges();
+					}
+					selection.addRange(range);
+					document.execCommand('copy');
+					alert('已复制到粘贴板');
+				},
+				import_savedData: function() {
+					let t_data = prompt("导入缓存数据","");
+					if(t_data){
+						let json_data = JSON.parse(t_data);
+						if(json_data.fixedTargets && json_data.tasks && json_data.myWorkTime && json_data.avgWorkTime){
+							for (let i in this.$data) {
+								this.$data[i] = json_data[i];
+							}
+							setTimeout(function(){
+								alert("数据导入成功!");
+							},100);
+						}else{
+							alert("数据格式不正确!");
+						}
+					};
+				},
+				clear_savedData: function() {
+					clearInterval(saveInterval);
+					localStorage.removeItem("data_tech_v3");
+					location.reload();
+				}
+			},
+			mounted: function() {
+				if (localStorage.getItem("data_tech_v3")) {
+					let savedData = JSON.parse(localStorage.getItem("data_tech_v3"));
+					for (let i in this.$data) {
+						this.$data[i] = savedData[i];
+					}
+				}
+				window.saveInterval = setInterval(function() {
+					localStorage.setItem("data_tech_v3", JSON.stringify(this.$data));
+				}.bind(this), 300);
+				this.task_cal();
+			}
+		})
+	</script>
+
+</html>
