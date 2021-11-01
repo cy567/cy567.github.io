@@ -296,6 +296,7 @@
       <table id="dataTable" style="margin-bottom: 50px">
         <tr>
           <th style="width: 150px">考核内容</th>
+          <th style="width: 50px">工时</th>
           <th style="width: 50px">权重</th>
           <th>考核指标</th>
           <th>《60</th>
@@ -309,17 +310,18 @@
           <tr class="row">
             <td :rowspan="cal_rowspan(task).rowspan">
               <div style="max-width: 250px; word-break: break-all">
-                <span v-if="task.taskDetail.taskId != ''"
+                <!-- <span v-if="task.taskDetail.taskId != ''"
                   ><a
                     :href="'http://192.168.0.200:8081/zentao/task-view-'+task.taskDetail.taskId+'.html'"
                     target="_blank"
                     >{{ task.taskName }}</a
                   ></span
-                >
-                <span v-else>{{ task.taskName }}</span>
+                > -->
+                <span>{{ task.taskName }}</span>
               </div>
-              总权重: {{ task.taskWeight }}%<br />
+              <!-- 总权重: {{ task.taskWeight }}%<br /> -->
             </td>
+            <td :rowspan="cal_rowspan(task).rowspan">{{task.taskTime}}</td>
             <td style="text-align: left">{{ task.targetWeight.time }}%</td>
             <td>
               {{cal_rowspan(task).target.time.text}}
@@ -413,7 +415,7 @@
 						</td> -->
           </tr>
           <tr>
-            <td colspan="5" style="padding: 0" class="tdBottomBorderWidth"></td>
+            <td colspan="6" style="padding: 0" class="tdBottomBorderWidth"></td>
           </tr>
         </template>
         <!-- <template v-for="target in fixedTargets">
@@ -1044,13 +1046,18 @@
                   const row = rows[i];
                   const cols = row.getElementsByTagName("td");
                   let selection = [];
+                  console.log(cols)
                   for (let j = 0; j < cols.length; j++) {
                     const col = cols[j];
                     selection.push(col.innerText.replace(/[\r\n]/g, ""));
                   }
-                  if (selection.length < 7) {
+                  if (selection.length < 8) {
                     selection.unshift("");
+                    for (let m = 0; m < 8 - selection.length; m++) {
+                      selection.unshift("");
+                    }
                   }
+                  // console.log(selection)
                   selections.push(selection.join("\t"));
                 }
                 clipboardData.setData(
